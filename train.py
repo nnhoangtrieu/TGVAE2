@@ -6,9 +6,10 @@ import torch_geometric
 import torch.nn.functional as F
 from torch.nn.utils import clip_grad_norm_
 from torch_geometric.loader import DataLoader as gDataLoader
-from model.base import Transformer
-from helper.data import ProcessData
-from helper.utils import monotonic_annealer, get_mask, seed_torch, cyclic_annealer
+from model.base import Transformer as TransformerBase
+from model.base_complete import Transformer as TransformerBaseComplete
+from data import ProcessData
+from utils import monotonic_annealer, get_mask, seed_torch, cyclic_annealer
 
 def loss_fn(pred, tgt, mu, sigma, beta) :
     reconstruction_loss = F.nll_loss(pred.reshape(-1, len(vocab)), tgt.reshape(-1), ignore_index=vocab['<PAD>'])
@@ -67,7 +68,7 @@ train_loader = gDataLoader(data_list, batch_size=arg.batch, shuffle=True)
 
 
 
-model = Transformer(d_model=arg.d_model,
+model = TransformerBaseComplete(d_model=arg.d_model,
                     d_latent=arg.d_latent,
                     d_ff=arg.d_ff,
                     e_heads=arg.e_heads,
