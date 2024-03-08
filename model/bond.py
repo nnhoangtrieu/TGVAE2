@@ -127,8 +127,15 @@ class EncoderLayer(nn.Module) :
         self.feed_forward = feed_forward
         self.drop2 = nn.Dropout(dropout)
         
-    def forward(self, nf, ei) : 
-        nf = nf + self.drop1(self.attn(self.norm1(nf), ei).relu())
+        self.edge_ff = nn.Sequential(
+            nn.Linear(d_model, d_model),
+            nn.LayerNorm(d_model),
+            nn.ReLU(),
+            nn.Linear(d_model, d_model)
+        )
+    def forward(self, nf, ei, ew) : 
+        ew = self.edge_ff(ew)
+        nf = nf + self.drop1(self.attn(self.norm1(nf), ei, ew).relu())
         nf = nf + self.drop2(self.feed_forward(self.norm2(nf)))
         return nf 
     
@@ -145,9 +152,9 @@ class Encoder(nn.Module) :
         z = mu + torch.exp(0.5 * sigma) * eps
         return z 
     
-    def forward(self, nf, ei, batch) : 
+    def forward(self, nf, ei, ew, batch) : 
         for layer in self.layers : 
-            nf = layer(nf, ei)
+            nf = layer(nf, ei, ew)
         nf = self.norm(nf) 
         pool = gnn.global_add_pool(nf, batch)
         mu, sigma = self.mu(pool), self.sigma(pool)
@@ -179,10 +186,10 @@ class Decoder(nn.Module):
         self.norm = LayerNorm(layer.d_model)
         self.upsize = nn.Sequential(
             nn.Linear(d_latent, layer.d_model),
-            nn.LayerNorm(),
+            nn.LayerNorm(layer.d_model),
             nn.ReLU(),
             nn.Linear(layer.d_model, layer.d_model),
-            nn.LayerNorm()
+            nn.LayerNorm(layer.d_model)
         )
     def forward(self, x, memory, src_mask, tgt_mask):
         memory = F.relu(self.upsize(memory))
@@ -208,7 +215,7 @@ class Transformer(nn.Module):
     def __init__(self, d_model, d_latent, d_ff, e_heads, d_heads, num_layer, dropout, vocab, gvocab) : 
         super(Transformer, self).__init__()
         c = copy.deepcopy
-
+        self.d_model = d_model
         attn = MultiHeadedAttention(d_heads, d_model)
         ff = PositionwiseFeedForward(d_model, d_ff)
         position = PositionalEncoding(d_model, dropout)
@@ -216,7 +223,8 @@ class Transformer(nn.Module):
         self.encoder = Encoder(EncoderLayer(d_model, e_heads, c(ff), dropout), num_layer, d_latent)
         self.decoder = Decoder(DecoderLayer(d_model, c(attn), c(attn), c(ff), dropout), num_layer, d_latent)
 
-        self.src_embedding = nn.Embedding(len(gvocab), d_model)
+        self.src_embedding = nn.Embedding(len(gvocab), d_model) 
+        self.edge_embedding = nn.Embedding(4, d_model)
         self.tgt_embedding = nn.Sequential(Embeddings(d_model, len(vocab)), c(position))
         
         self.generator = nn.Linear(d_model, len(vocab))
@@ -228,10 +236,11 @@ class Transformer(nn.Module):
         return out
         
     def forward(self, src, tgt, src_mask, tgt_mask):  
-        nf, ei, batch = src.x, src.edge_index, src.batch
-        nf = self.src_embedding(nf)
-        tgt = self.tgt_embedding(tgt)
-        z, mu, sigma = self.encoder(nf, ei, batch)
+        nf, ei, ew, batch = src.x, src.edge_index, src.edge_attr, src.batch
+        nf = self.src_embedding(nf) * math.sqrt(self.d_model)
+        ew = self.edge_embedding(ew) * math.sqrt(self.d_model)
+        tgt = self.tgt_embedding(tgt) 
+        z, mu, sigma = self.encoder(nf, ei, ew, batch)
         out = self.decoder(tgt, z, src_mask, tgt_mask)
         out = F.log_softmax(self.generator(out), dim = -1)
 

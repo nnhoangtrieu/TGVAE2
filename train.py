@@ -8,6 +8,7 @@ from torch.nn.utils import clip_grad_norm_
 from torch_geometric.loader import DataLoader as gDataLoader
 from model.base import Transformer as TransformerBase
 from model.base_complete import Transformer as TransformerBaseComplete
+from model.bond import Transformer as TransformerBond
 from data import ProcessData
 from utils import monotonic_annealer, get_mask, seed_torch, cyclic_annealer
 
@@ -68,7 +69,7 @@ train_loader = gDataLoader(data_list, batch_size=arg.batch, shuffle=True)
 
 
 
-model = TransformerBaseComplete(d_model=arg.d_model,
+model = TransformerBond(d_model=arg.d_model,
                     d_latent=arg.d_latent,
                     d_ff=arg.d_ff,
                     e_heads=arg.e_heads,

@@ -72,6 +72,17 @@ class ProcessData() :
 
     def encode(self, smi) :
         return [0] + [self.vocab[char] for char in smi] + [1]
+    
+    def get_ew(self, smi) : 
+        dic = {
+            'SINGLE': 0,
+            'DOUBLE': 1,
+            'TRIPLE': 2,
+            'AROMATIC': 3
+        }
+        mol = rdkit.Chem.MolFromSmiles(smi) 
+        return torch.tensor([dic[str(bond.GetBondType())] for bond in mol.GetBonds()] * 2)
+    
     def get_ei(self, smi) : 
         mol = rdkit.Chem.MolFromSmiles(smi) 
         ei = []
@@ -102,6 +113,7 @@ class ProcessData() :
         token_list = [self.pad(t) for t in token_list]
         node_feature_list = [self.get_nf(smi) for smi in self.smi_list]
         edge_index_list = [self.get_ei(smi) for smi in self.smi_list]
-        data_list = [MyData(x=node_feature_list[i], edge_index=edge_index_list[i], smi=token_list[i]) for i in range(len(self.smi_list))]
+        edge_weight_list = [self.get_ew(smi) for smi in self.smi_list]
+        data_list = [MyData(x=node_feature_list[i], edge_index=edge_index_list[i], edge_attr=edge_weight_list[i], smi=token_list[i]) for i in range(len(self.smi_list))]
 
         return data_list
