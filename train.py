@@ -9,6 +9,7 @@ from torch_geometric.loader import DataLoader as gDataLoader
 from model.base import Transformer as TransformerBase
 from model.base_complete import Transformer as TransformerBaseComplete
 from model.bond import Transformer as TransformerBond
+from model.simple_bond import Transformer as TransformerSimpleBond
 from model.graph_embedding import Transformer as TransformerGraphEmbedding
 from data import ProcessData
 from utils import monotonic_annealer, get_mask, seed_torch, cyclic_annealer
@@ -103,6 +104,18 @@ elif arg.save_name[:4] == 'bond' :
                             vocab=vocab,
                             gvocab=gvocab).to(device)
     print('Model: TransformerBond')
+
+elif arg.save_name[:5] == 'sbond' : 
+    model = TransformerSimpleBond(d_model=arg.d_model,
+                    d_latent=arg.d_latent,
+                    d_ff=arg.d_ff,
+                    e_heads=arg.e_heads,
+                    d_heads=arg.d_heads,
+                    num_layer=arg.n_layers,
+                    dropout=arg.dropout,
+                    vocab=vocab,
+                    gvocab=gvocab).to(device)
+    print('Model: TransformerSimpleBond')
 elif arg.save_name[:2] == 'ge' : 
     model = TransformerGraphEmbedding(d_model=arg.d_model,
                     d_latent=arg.d_latent,

@@ -31,7 +31,7 @@ for i, script in enumerate(scripts) :
 #SBATCH --output=train%j.out
                 
 ml Python 
-python {script} --save_name "ge_{save_name}"
+python {script} --save_name "sbond_{save_name}"
  ''')
         
 
