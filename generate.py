@@ -19,6 +19,7 @@ current = current.strftime("%m-%d %H:%M:%S")
 
 parser = argparse.ArgumentParser()
 parser.add_argument('--save_name', type=str, default='None')
+parser.add_argument('--epoch', type=int, default=-1)
 parser.add_argument('--num_gen', type=int, default=30000)
 parser.add_argument('--get_metric', type=bool, default=True)
 parser.add_argument('--num_cpu', type=int, default=4)
@@ -97,7 +98,10 @@ else :
     ).to(device)
 
 try :
-    model.load_state_dict(torch.load(f'checkpoint/{arg.save_name}/model.pt')['MODEL_STATE'])
+    if arg.epoch == -1 : 
+        model.load_state_dict(torch.load(f'checkpoint/{arg.save_name}/model.pt')['MODEL_STATE'])
+    else : 
+        model.load_state_dict(torch.load(f'checkpoint/{arg.save_name}/snapshot_{arg.epoch}.pt')['MODEL_STATE'])
     print('Model loaded successfully')
 except : 
     print('Model not found')
@@ -127,17 +131,17 @@ with torch.no_grad() :
     # for i, mol in enumerate(gen_mol) : 
     #     print(f'{i+1}. {mol}')
 
-    os.makedirs(f'output/{current}', exist_ok=True)
+    os.makedirs(f'output/{current}_{arg.save_name}', exist_ok=True)
 
 
-    with open(f'output/{current}/molecules.txt', 'w') as f :
+    with open(f'output/{current}_{arg.save_name}/molecules.txt', 'w') as f :
         for i, mol in enumerate(gen_mol) : 
             f.write(f'{mol}\n')
 
     if arg.get_metric == True :
         print('Calculating metrics...')
         result = get_all_metrics(gen_mol, k=(10000, 20000, 25000, 30000), pool=arg.num_cpu)
-        get_plot(gen_mol, f'output/{current}')
+        get_plot(gen_mol, f'output/{current}_{arg.save_name}')
     else :
         print('Skip calculating metrics...')
 
@@ -151,7 +155,7 @@ with torch.no_grad() :
     table3.add_row(["TGVAE", round(result['FCD/Test'], 4), round(result['FCD/TestSF'], 4), round(result['SNN/Test'], 4), round(result['SNN/TestSF'], 4)])
     table4.add_row(["TGVAE", round(result['Frag/Test'], 4), round(result['Frag/TestSF'], 4), round(result['Scaf/Test'], 4), round(result['Scaf/TestSF'], 4)])
 
-    with open(f'output/{current}/chart.txt', 'w') as f : 
+    with open(f'output/{current}_{arg.save_name}/chart.txt', 'w') as f : 
         f.write(table1.get_string() + '\n\n')
         f.write(table2.get_string() + '\n\n')
         f.write(table3.get_string() + '\n\n')

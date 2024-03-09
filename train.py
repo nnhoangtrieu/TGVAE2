@@ -9,6 +9,7 @@ from torch_geometric.loader import DataLoader as gDataLoader
 from model.base import Transformer as TransformerBase
 from model.base_complete import Transformer as TransformerBaseComplete
 from model.bond import Transformer as TransformerBond
+from model.graph_embedding import Transformer as TransformerGraphEmbedding
 from data import ProcessData
 from utils import monotonic_annealer, get_mask, seed_torch, cyclic_annealer
 
@@ -68,8 +69,42 @@ train_loader = gDataLoader(data_list, batch_size=arg.batch, shuffle=True)
 
 
 
-
-model = TransformerBond(d_model=arg.d_model,
+if arg.save_name[:4] == 'base' :
+    model = TransformerBase(d_model=arg.d_model,
+                            d_latent=arg.d_latent,
+                            d_ff=arg.d_ff,
+                            e_heads=arg.e_heads,
+                            d_heads=arg.d_heads,
+                            num_layer=arg.n_layers,
+                            dropout=arg.dropout,
+                            vocab=vocab,
+                            gvocab=gvocab).to(device)
+    print('Model: TransformerBase')
+    
+elif arg.save_name[:6] == 'base_c': 
+    model = TransformerBaseComplete(d_model=arg.d_model,
+                                    d_latent=arg.d_latent,
+                                    d_ff=arg.d_ff,
+                                    e_heads=arg.e_heads,
+                                    d_heads=arg.d_heads,
+                                    num_layer=arg.n_layers,
+                                    dropout=arg.dropout,
+                                    vocab=vocab,
+                                    gvocab=gvocab).to(device)
+    print('Model: TransformerBaseComplete')
+elif arg.save_name[:4] == 'bond' :
+    model = TransformerBond(d_model=arg.d_model,
+                            d_latent=arg.d_latent,
+                            d_ff=arg.d_ff,
+                            e_heads=arg.e_heads,
+                            d_heads=arg.d_heads,
+                            num_layer=arg.n_layers,
+                            dropout=arg.dropout,
+                            vocab=vocab,
+                            gvocab=gvocab).to(device)
+    print('Model: TransformerBond')
+elif arg.save_name[:2] == 'ge' : 
+    model = TransformerGraphEmbedding(d_model=arg.d_model,
                     d_latent=arg.d_latent,
                     d_ff=arg.d_ff,
                     e_heads=arg.e_heads,
@@ -78,6 +113,10 @@ model = TransformerBond(d_model=arg.d_model,
                     dropout=arg.dropout,
                     vocab=vocab,
                     gvocab=gvocab).to(device)
+    print('Model: TransformerGraphEmbedding')
+else : 
+    print('Name not match')
+    exit()
 
 optim = torch.optim.Adam(model.parameters(),
                          lr=arg.lr,
@@ -99,16 +138,38 @@ elif arg.kl_type == 'cyclic' :
 
 
 
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
 print('\n\n\n')
 print('#########################################################################')
 print('######################### START TRAINING ################################')
 print('#########################################################################')
 print('\n\n\n')
-
-
-
-
-
 for epoch in range(1, arg.n_epochs + 1) :
     print(f'Starting Epoch {epoch}...')
     train_loss, val_loss, recon_loss, kl_loss = 0, 0, 0, 0
