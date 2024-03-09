@@ -24,6 +24,8 @@ from rdkit.Chem.AllChem import GetMorganFingerprintAsBitVect as Morgan
 from rdkit.Chem.QED import qed
 from rdkit.Chem.Scaffolds import MurckoScaffold
 from rdkit.Chem import Descriptors
+import sys 
+sys.path.append(os.path.dirname(__file__))
 import sascorer 
 import npscorer
 
@@ -71,9 +73,13 @@ def mapper(n_jobs):
         return _mapper
     return n_jobs.map
 
-# _base_dir = os.path.split(__file__)[0]
-_mcf = pd.read_csv('mcf.csv')
-_pains = pd.read_csv('wehi_pains.csv', names=['smarts', 'names'])
+base_dir = os.path.split(__file__)[0]
+_mcf = pd.read_csv(os.path.join(base_dir,'data', 'mcf.csv'))
+_pains = pd.read_csv(os.path.join(base_dir,'data', 'wehi_pains.csv'), names=['smarts', 'names'])
+
+
+# _mcf = pd.read_csv('mcf.csv')
+# _pains = pd.read_csv('wehi_pains.csv', names=['smarts', 'names'])
 # _mcf = pd.read_csv(os.path.join(_base_dir, 'mcf.csv'))
 # _pains = pd.read_csv(os.path.join(_base_dir, 'wehi_pains.csv'),
 #                      names=['smarts', 'names'])
@@ -351,10 +357,14 @@ def get_all_metrics(gen, k=None, n_jobs=1,
                 "You cannot specify custom test "
                 "statistics for default test set")
         # test = get_dataset('test')
-        with open('data/test.txt','r') as f :
+        with open(os.path.join(os.path.dirname(__file__), 'data', 'test.txt'),'r') as f :
             test = f.readlines()
             test = test[1:]
             test = [c[:-6] for c in test]
+        # with open('data/test.txt','r') as f :
+        #     test = f.readlines()
+        #     test = test[1:]
+        #     test = [c[:-6] for c in test]
         ptest = get_statistics('test')
 
     if test_scaffolds is None:
@@ -363,16 +373,23 @@ def get_all_metrics(gen, k=None, n_jobs=1,
                 "You cannot specify custom scaffold test "
                 "statistics for default scaffold test set")
         # test_scaffolds = get_dataset('test_scaffolds')
-        with open('data/test_scaffolds.txt','r') as f :
+
+        with open(os.path.join(os.path.dirname(__file__), 'data', 'test_scaffolds.txt'),'r') as f :
             test_scaffolds = f.readlines()
             test_scaffolds = test_scaffolds[1:]
             test_scaffolds = [c[:-6] for c in test_scaffolds]
+        # with open('data/test_scaffolds.txt','r') as f :
+        #     test_scaffolds = f.readlines()
+        #     test_scaffolds = test_scaffolds[1:]
+        #     test_scaffolds = [c[:-6] for c in test_scaffolds]
         ptest_scaffolds = get_statistics('test_scaffolds')
 
     # train = train or get_dataset('train')
-    with open('data/train.txt','r') as f :
-        train = f.readlines()
-        train = [c.strip() for c in train]
+    with open(os.path.join(os.path.dirname(__file__), 'data', 'train.txt'),'r') as f :
+        train = [c.strip() for c in f.readlines()]
+    # with open('data/train.txt','r') as f :
+    #     train = f.readlines()
+    #     train = [c.strip() for c in train]
     if k is None:
         k = [1000, 10000]
     disable_rdkit_log()

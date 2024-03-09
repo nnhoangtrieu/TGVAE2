@@ -1,11 +1,11 @@
 import os 
 import torch 
 import argparse
-from model.base import Transformer 
-from model.gatv2 import TransformerGATv2
+from model.base import Transformer as TransformerBase
+from model.base_complete import Transformer as TransformerBaseComplete
+from model.bond import Transformer as TransformerBond
 from torch.utils.tensorboard import SummaryWriter
 import multiprocessing
-import metrics
 from metric.metrics import get_all_metrics
 from tqdm import tqdm
 
@@ -35,19 +35,18 @@ parser.add_argument('--save_epoch', type=int, default=-1)
 arg = parser.parse_args()
 
 
-if not os.path.exists(f'./checkpoint/{arg.save_name}') and arg.save_name != 'None' : 
+if not os.path.exists(f'checkpoint/{arg.save_name}') and arg.save_name != 'None' : 
     print('Path not exists')
     exit()
 
-if not os.path.exists(f'./genmol/{arg.save_name}') :
-    os.makedirs(f'./genmol/{arg.save_name}')
+if not os.path.exists(f'genmol/{arg.save_name}') :
+    os.makedirs(f'genmol/{arg.save_name}')
 
-config = torch.load(f'./checkpoint/{arg.save_name}/config.pt') if arg.save_name != 'None' else torch.load(f'{arg.save_path}/config.pt')
+config = torch.load(f'checkpoint/{arg.save_name}/config.pt') if arg.save_name != 'None' else torch.load(f'{arg.save_path}/config.pt')
 inv_vocab = {v: k for k, v in config['vocab'].items()}
 
-
-if arg.save_name[0] == 'v' :
-    model = TransformerGATv2(
+if arg.save_name[0] == 'b' : 
+    model = TransformerBond(
         d_model=config['d_model'],
         d_latent=config['d_latent'],
         d_ff=config['d_ff'],
@@ -58,8 +57,20 @@ if arg.save_name[0] == 'v' :
         vocab=config['vocab'],
         gvocab=config['gvocab']
     ).to(device)
-else : 
-    model = Transformer(
+elif arg.save_name[0] == 'c' : 
+    model = TransformerBaseComplete(
+        d_model=config['d_model'],
+        d_latent=config['d_latent'],
+        d_ff=config['d_ff'],
+        e_heads=config['e_heads'],
+        d_heads=config['d_heads'],
+        num_layer=config['n_layers'],
+        dropout=config['dropout'],
+        vocab=config['vocab'],
+        gvocab=config['gvocab']
+    ).to(device)
+else :
+    model = TransformerBase(
         d_model=config['d_model'],
         d_latent=config['d_latent'],
         d_ff=config['d_ff'],
@@ -79,16 +90,16 @@ if arg.save_epoch == -1 :
     for epoch in range(1, config['n_epochs'] + 1) :
         gen_mol = torch.empty(0).to(device)
         if epoch <= 9 :
-            with open(f'./genmol/{arg.save_name}/e_{epoch}', 'w') as f :
+            with open(f'genmol/{arg.save_name}/e_{epoch}', 'w') as f :
                 f.write(f'Epoch {epoch} skipped...')
                 print(f'Epoch {epoch} skipped...')
                 continue
-        if epoch <= len(os.listdir(f'./genmol/{arg.save_name}')) : 
+        if epoch <= len(os.listdir(f'genmol/{arg.save_name}')) : 
             print(f'Epoch {epoch} already exists')
             continue  
         else :
             try :
-                model.load_state_dict(torch.load(f'./checkpoint/{arg.save_name}/snapshot_{epoch}.pt')['MODEL_STATE'])
+                model.load_state_dict(torch.load(f'checkpoint/{arg.save_name}/snapshot_{epoch}.pt')['MODEL_STATE'])
                 print(f'Loaded snapshot_{epoch}.pt')
             except :
                 print("Snapshot not found")
@@ -96,7 +107,7 @@ if arg.save_epoch == -1 :
 
             with torch.no_grad() : 
                 print(f'Epoch {epoch} generating molecules...')
-                for _ in range(1) :
+                for _ in range(10) :
                     z = torch.randn(3000, config['d_latent']).to(device)
                     tgt = torch.zeros(3000, 1, dtype=torch.long).to(device)
 
@@ -117,10 +128,18 @@ if arg.save_epoch == -1 :
                     writer.add_scalar(name, value, epoch)
                     print(f'\t{name}: {value:.4f}')
 
-                with open(f'./genmol/{arg.save_name}/e_{epoch}', 'w') as f : 
+                with open(f'genmol/{arg.save_name}/e_{epoch}', 'w') as f : 
                     for i, mol in enumerate(gen_mol[:1000]) : 
                         f.write(f'{i+1}. {mol}\n')
                     f.write(f'Epoch {epoch}:\n{result}')
+
+
+
+
+
+
+
+
 
 
 
@@ -130,7 +149,7 @@ else :
         if arg.save_name == 'None' : 
             model.load_state_dict(torch.load(f'{arg.save_path}/snapshot_{arg.save_epoch}.pt')['MODEL_STATE'])
         else :
-            model.load_state_dict(torch.load(f'./checkpoint/{arg.save_name}/snapshot_{arg.save_epoch}.pt')['MODEL_STATE'])
+            model.load_state_dict(torch.load(f'checkpoint/{arg.save_name}/snapshot_{arg.save_epoch}.pt')['MODEL_STATE'])
         print(f'Loaded snapshot_{arg.save_epoch}.pt')
     except :
         print("Snapshot not found")
@@ -140,7 +159,7 @@ else :
     
     with torch.no_grad() : 
         print(f'Epoch {arg.save_epoch} generating molecules...')
-        for _ in tqdm(range(1)) :
+        for _ in tqdm(range(30)) :
             z = torch.randn(1000, config['d_latent']).to(device)
             tgt = torch.zeros(1000, 1, dtype=torch.long).to(device)
 

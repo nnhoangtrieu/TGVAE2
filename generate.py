@@ -1,15 +1,17 @@
 import os 
 import torch 
 import argparse 
-from model.base import Transformer
+from model.base import Transformer as TransformerBase
+from model.base_complete import Transformer as TransformerBaseComplete
+from model.bond import Transformer as TransformerBond
 import multiprocessing 
 from tqdm import tqdm
 import datetime 
 import warnings
 import rdkit
-import metrics
-import plot 
-from table import table1, table2, table3, table4
+from metric.metrics import get_all_metrics
+from metric.plot import get_plot
+from helper.table import table1, table2, table3, table4
 warnings.filterwarnings("ignore")
 
 current = datetime.datetime.now()
@@ -23,7 +25,7 @@ parser.add_argument('--num_cpu', type=int, default=4)
 
 arg = parser.parse_args()
 
-if not os.path.exists(f'../checkpoint/{arg.save_name}') and arg.save_name != 'None' :
+if not os.path.exists(f'checkpoint/{arg.save_name}') and arg.save_name != 'None' :
     print('Path not exists')
     print('Make sure there is a folder with the name you provided, which inside has "config.pt" and "model.pt"')
     exit()
@@ -54,23 +56,48 @@ def parallel_f(f, input_list) :
 
 
 
-config = torch.load(f'../checkpoint/{arg.save_name}/config.pt') 
+config = torch.load(f'checkpoint/{arg.save_name}/config.pt') 
 inv_vocab = {v: k for k, v in config['vocab'].items()}
 
-model = Transformer(
-    d_model=config['d_model'],
-    d_latent=config['d_latent'],
-    d_ff=config['d_ff'],
-    e_heads=config['e_heads'],
-    d_heads=config['d_heads'],
-    num_layer=config['n_layers'],
-    dropout=config['dropout'],
-    vocab=config['vocab'],
-    gvocab=config['gvocab']
-).to(device)
+if arg.save_name[0] == 'b' : 
+    model = TransformerBond(
+        d_model=config['d_model'],
+        d_latent=config['d_latent'],
+        d_ff=config['d_ff'],
+        e_heads=config['e_heads'],
+        d_heads=config['d_heads'],
+        num_layer=config['n_layers'],
+        dropout=config['dropout'],
+        vocab=config['vocab'],
+        gvocab=config['gvocab']
+    ).to(device)
+elif arg.save_name[0] == 'c' : 
+    model = TransformerBaseComplete(
+        d_model=config['d_model'],
+        d_latent=config['d_latent'],
+        d_ff=config['d_ff'],
+        e_heads=config['e_heads'],
+        d_heads=config['d_heads'],
+        num_layer=config['n_layers'],
+        dropout=config['dropout'],
+        vocab=config['vocab'],
+        gvocab=config['gvocab']
+    ).to(device)
+else :
+    model = TransformerBase(
+        d_model=config['d_model'],
+        d_latent=config['d_latent'],
+        d_ff=config['d_ff'],
+        e_heads=config['e_heads'],
+        d_heads=config['d_heads'],
+        num_layer=config['n_layers'],
+        dropout=config['dropout'],
+        vocab=config['vocab'],
+        gvocab=config['gvocab']
+    ).to(device)
 
 try :
-    model.load_state_dict(torch.load(f'../checkpoint/{arg.save_name}/model.pt')['MODEL_STATE'])
+    model.load_state_dict(torch.load(f'checkpoint/{arg.save_name}/model.pt')['MODEL_STATE'])
     print('Model loaded successfully')
 except : 
     print('Model not found')
@@ -100,17 +127,17 @@ with torch.no_grad() :
     # for i, mol in enumerate(gen_mol) : 
     #     print(f'{i+1}. {mol}')
 
-    os.makedirs(f'../output/{current}', exist_ok=True)
+    os.makedirs(f'output/{current}', exist_ok=True)
 
 
-    with open(f'../output/{current}/molecules.txt', 'w') as f :
+    with open(f'output/{current}/molecules.txt', 'w') as f :
         for i, mol in enumerate(gen_mol) : 
             f.write(f'{mol}\n')
 
     if arg.get_metric == True :
         print('Calculating metrics...')
-        result = metrics.get_all_metrics(gen_mol, k=(10000, 20000, 25000, 30000), pool=arg.num_cpu)
-        plot.get_plot(gen_mol, f'../output/{current}')
+        result = get_all_metrics(gen_mol, k=(10000, 20000, 25000, 30000), pool=arg.num_cpu)
+        get_plot(gen_mol, f'output/{current}')
     else :
         print('Skip calculating metrics...')
 
@@ -124,7 +151,7 @@ with torch.no_grad() :
     table3.add_row(["TGVAE", round(result['FCD/Test'], 4), round(result['FCD/TestSF'], 4), round(result['SNN/Test'], 4), round(result['SNN/TestSF'], 4)])
     table4.add_row(["TGVAE", round(result['Frag/Test'], 4), round(result['Frag/TestSF'], 4), round(result['Scaf/Test'], 4), round(result['Scaf/TestSF'], 4)])
 
-    with open(f'../output/{current}/chart.txt', 'w') as f : 
+    with open(f'output/{current}/chart.txt', 'w') as f : 
         f.write(table1.get_string() + '\n\n')
         f.write(table2.get_string() + '\n\n')
         f.write(table3.get_string() + '\n\n')

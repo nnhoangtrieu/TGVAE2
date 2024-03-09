@@ -2,19 +2,10 @@ import re
 
 scripts = [
 
-# 'train.py --max_len 44 --n_layers 4',
-# 'train.py --max_len 44 --n_layers 6',
-# 'train.py --max_len 44 --n_layers 8',
-# 'train.py --max_len 44 --n_layers 9',
-# 'train.py --max_len 44 --n_layers 10',
-
-
-
-'train.py --max_len 100 --n_layers 8'
-# 'train.py --max_len 100 --n_layers 6',
-# 'train.py --max_len 100 --n_layers 8',
-# 'train.py --max_len 100 --n_layers 9',
-# 'train.py --max_len 100 --n_layers 10'
+'train.py --max_len 100 --n_layers 6',
+'train.py --max_len 100 --n_layers 8',
+'train.py --max_len 100 --n_layers 9',
+'train.py --max_len 100 --n_layers 10'
 ]
 
 
@@ -37,10 +28,10 @@ for i, script in enumerate(scripts) :
 #SBATCH --job-name=trieu-nguyen
 #SBATCH --cpus-per-task=4
 #SBATCH --gres=gpu:a30:1
-#SBATCH --output=job-out/single-gpu/train%j.out
+#SBATCH --output=train%j.out
                 
 ml Python 
-python {script} --save_name "v2{save_name}"
+python {script} --save_name "bond_{save_name}"
  ''')
         
 
@@ -67,6 +58,6 @@ python {script} --save_name "v2{save_name}"
 
 
 
-# # for file in /home/80027464/graphvae/job*; do [ -f "$file" ] && sbatch "$file"; done
-# # for file in /home/80027464/graphvae/moses*; do [ -f "$file" ] && sbatch "$file"; done
+# # for file in /home/80027464/TGVAE/job*; do [ -f "$file" ] && sbatch "$file"; done
+# # for file in /home/80027464/TGVAE/moses*; do [ -f "$file" ] && sbatch "$file"; done
 
