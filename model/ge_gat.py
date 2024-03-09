@@ -9,9 +9,11 @@ import copy
 device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
 
 def clones(module, N):
+    "Produce N identical layers."
     return nn.ModuleList([copy.deepcopy(module) for _ in range(N)])
 
 def attention(query, key, value, mask=None, dropout=None):
+    "Compute 'Scaled Dot Product Attention'"
     d_k = query.size(-1)
     scores = torch.matmul(query, key.transpose(-2, -1)) / math.sqrt(d_k)
     if mask is not None:
@@ -127,15 +129,8 @@ class EncoderLayer(nn.Module) :
         self.feed_forward = feed_forward
         self.drop2 = nn.Dropout(dropout)
         
-        # self.edge_ff = nn.Sequential(
-        #     nn.Linear(d_model, d_model),
-        #     nn.LayerNorm(d_model),
-        #     nn.ReLU(),
-        #     nn.Linear(d_model, d_model)
-        # )
-    def forward(self, nf, ei, ew) : 
-        # ew = self.edge_ff(ew)
-        nf = nf + self.drop1(self.attn(self.norm1(nf), ei, ew).relu())
+    def forward(self, nf, ei) : 
+        nf = nf + self.drop1(self.attn(self.norm1(nf), ei).relu())
         nf = nf + self.drop2(self.feed_forward(self.norm2(nf)))
         return nf 
     
@@ -152,9 +147,9 @@ class Encoder(nn.Module) :
         z = mu + torch.exp(0.5 * sigma) * eps
         return z 
     
-    def forward(self, nf, ei, ew, batch) : 
+    def forward(self, nf, ei, batch) : 
         for layer in self.layers : 
-            nf = layer(nf, ei, ew)
+            nf = layer(nf, ei)
         nf = self.norm(nf) 
         pool = gnn.global_add_pool(nf, batch)
         mu, sigma = self.mu(pool), self.sigma(pool)
@@ -198,24 +193,12 @@ class Decoder(nn.Module):
         return self.norm(x)
     
 
-
-
-
-
-
-
-
-
-
-
-
-
 ######## Model ########
 class Transformer(nn.Module):
     def __init__(self, d_model, d_latent, d_ff, e_heads, d_heads, num_layer, dropout, vocab, gvocab) : 
         super(Transformer, self).__init__()
         c = copy.deepcopy
-        self.d_model = d_model
+
         attn = MultiHeadedAttention(d_heads, d_model)
         ff = PositionwiseFeedForward(d_model, d_ff)
         position = PositionalEncoding(d_model, dropout)
@@ -223,7 +206,10 @@ class Transformer(nn.Module):
         self.encoder = Encoder(EncoderLayer(d_model, e_heads, c(ff), dropout), num_layer, d_latent)
         self.decoder = Decoder(DecoderLayer(d_model, c(attn), c(attn), c(ff), dropout), num_layer, d_latent)
 
-        self.src_embedding = nn.Embedding(len(gvocab), d_model) 
+        # self.src_embedding = nn.Embedding(len(gvocab), d_model)
+
+        self.src_embedding = gnn.GATConv(1, d_model//e_heads, e_heads, dropout=dropout)
+        self.norm = LayerNorm(d_model)
         self.tgt_embedding = nn.Sequential(Embeddings(d_model, len(vocab)), c(position))
         
         self.generator = nn.Linear(d_model, len(vocab))
@@ -235,11 +221,13 @@ class Transformer(nn.Module):
         return out
         
     def forward(self, src, tgt, src_mask, tgt_mask):  
-        nf, ei, ew, batch = src.x, src.edge_index, src.edge_attr, src.batch
-        ew = (ew+1).unsqueeze(-1).float()
-        nf = self.src_embedding(nf) * math.sqrt(self.d_model)
-        tgt = self.tgt_embedding(tgt) 
-        z, mu, sigma = self.encoder(nf, ei, ew, batch)
+        nf, ei, batch = src.x, src.edge_index, src.batch
+        nf = nf.unsqueeze(-1).float()
+        nf = self.src_embedding(nf, ei)
+        nf = self.norm(nf).relu()
+
+        tgt = self.tgt_embedding(tgt)
+        z, mu, sigma = self.encoder(nf, ei, batch)
         out = self.decoder(tgt, z, src_mask, tgt_mask)
         out = F.log_softmax(self.generator(out), dim = -1)
 

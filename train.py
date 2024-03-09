@@ -6,11 +6,14 @@ import torch_geometric
 import torch.nn.functional as F
 from torch.nn.utils import clip_grad_norm_
 from torch_geometric.loader import DataLoader as gDataLoader
-from model.base import Transformer as TransformerBase
-from model.base_complete import Transformer as TransformerBaseComplete
-from model.bond import Transformer as TransformerBond
-from model.simple_bond import Transformer as TransformerSimpleBond
-from model.graph_embedding import Transformer as TransformerGraphEmbedding
+from model.base_o import Transformer as TransformerBaseOld
+from model.base_c import Transformer as TransformerBaseComplete
+from model.bond_s import Transformer as TransformerSimpleBond
+from model.bond_l import Transformer as TransformerLearnableBond
+from model.ge_gat import Transformer as TransformerGATEmbedding
+from model.ge_gcn import Transformer as TransformerGCNEmbedding
+from model.ge_bond_l_gat import Transformer as TransformerGATEmbedding_LearnableBond
+from model.ge_bond_l_gcn import Transformer as TransformerGCNEmbedding_LearnableBond
 from data import ProcessData
 from utils import monotonic_annealer, get_mask, seed_torch, cyclic_annealer
 
@@ -23,7 +26,7 @@ def loss_fn(pred, tgt, mu, sigma, beta) :
 device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
 seed_torch()
 parser = argparse.ArgumentParser()
-parser.add_argument('--max_len', type=int, default=44)
+parser.add_argument('--max_len', type=int, default=100)
 parser.add_argument('--batch', type=int, default=128)
 parser.add_argument('--d_model', type=int, default=512)
 parser.add_argument('--d_latent', type=int, default=512)
@@ -35,7 +38,7 @@ parser.add_argument('--dropout', type=float, default=0.5)
 parser.add_argument('--lr', type=float, default=5e-4)
 parser.add_argument('--wd', type=float, default=1e-6)
 parser.add_argument('--n_epochs', type=int, default=100)
-parser.add_argument('--kl_type', type=str, default="monotonic")
+parser.add_argument('--kl', type=str, default="M")
 parser.add_argument('--kl_w_start', type=float, default=0.00005)
 parser.add_argument('--kl_w_end', type=float, default=0.0001)
 parser.add_argument('--kl_cycle', type=int, default=4)
@@ -70,8 +73,9 @@ train_loader = gDataLoader(data_list, batch_size=arg.batch, shuffle=True)
 
 
 
-if arg.save_name[:4] == 'base' :
-    model = TransformerBase(d_model=arg.d_model,
+
+if arg.save_name[:6] == 'base_o' :
+    model = TransformerBaseOld(d_model=arg.d_model,
                             d_latent=arg.d_latent,
                             d_ff=arg.d_ff,
                             e_heads=arg.e_heads,
@@ -80,8 +84,8 @@ if arg.save_name[:4] == 'base' :
                             dropout=arg.dropout,
                             vocab=vocab,
                             gvocab=gvocab).to(device)
-    print('Model: TransformerBase')
-    
+    print('Model: TransformerBaseOld')
+
 elif arg.save_name[:6] == 'base_c': 
     model = TransformerBaseComplete(d_model=arg.d_model,
                                     d_latent=arg.d_latent,
@@ -93,19 +97,8 @@ elif arg.save_name[:6] == 'base_c':
                                     vocab=vocab,
                                     gvocab=gvocab).to(device)
     print('Model: TransformerBaseComplete')
-elif arg.save_name[:4] == 'bond' :
-    model = TransformerBond(d_model=arg.d_model,
-                            d_latent=arg.d_latent,
-                            d_ff=arg.d_ff,
-                            e_heads=arg.e_heads,
-                            d_heads=arg.d_heads,
-                            num_layer=arg.n_layers,
-                            dropout=arg.dropout,
-                            vocab=vocab,
-                            gvocab=gvocab).to(device)
-    print('Model: TransformerBond')
 
-elif arg.save_name[:5] == 'sbond' : 
+elif arg.save_name[:6] == 'bond_s' :
     model = TransformerSimpleBond(d_model=arg.d_model,
                     d_latent=arg.d_latent,
                     d_ff=arg.d_ff,
@@ -116,8 +109,9 @@ elif arg.save_name[:5] == 'sbond' :
                     vocab=vocab,
                     gvocab=gvocab).to(device)
     print('Model: TransformerSimpleBond')
-elif arg.save_name[:2] == 'ge' : 
-    model = TransformerGraphEmbedding(d_model=arg.d_model,
+
+elif arg.save_name[:6] == 'bond_l' :
+    model = TransformerLearnableBond(d_model=arg.d_model,
                     d_latent=arg.d_latent,
                     d_ff=arg.d_ff,
                     e_heads=arg.e_heads,
@@ -126,22 +120,90 @@ elif arg.save_name[:2] == 'ge' :
                     dropout=arg.dropout,
                     vocab=vocab,
                     gvocab=gvocab).to(device)
-    print('Model: TransformerGraphEmbedding')
+    print('Model: TransformerLearnableBond')
+
+elif arg.save_name[:6] == 'ge_gat' :
+    model = TransformerGATEmbedding(d_model=arg.d_model,
+                    d_latent=arg.d_latent,
+                    d_ff=arg.d_ff,
+                    e_heads=arg.e_heads,
+                    d_heads=arg.d_heads,
+                    num_layer=arg.n_layers,
+                    dropout=arg.dropout,
+                    vocab=vocab,
+                    gvocab=gvocab).to(device)
+    print('Model: TransformerGATEmbedding')
+
+elif arg.save_name[:6] == 'ge_gcn' :
+    model = TransformerGCNEmbedding(d_model=arg.d_model,
+                    d_latent=arg.d_latent,
+                    d_ff=arg.d_ff,
+                    e_heads=arg.e_heads,
+                    d_heads=arg.d_heads,
+                    num_layer=arg.n_layers,
+                    dropout=arg.dropout,
+                    vocab=vocab,
+                    gvocab=gvocab).to(device)
+    print('Model: TransformerGCNEmbedding')
+
+elif arg.save_name[:13] == 'ge_bond_l_gat' :
+    model = TransformerGATEmbedding_LearnableBond(d_model=arg.d_model,
+                    d_latent=arg.d_latent,
+                    d_ff=arg.d_ff,
+                    e_heads=arg.e_heads,
+                    d_heads=arg.d_heads,
+                    num_layer=arg.n_layers,
+                    dropout=arg.dropout,
+                    vocab=vocab,
+                    gvocab=gvocab).to(device)
+    print('Model: TransformerGATEmbedding_LearnableBond')
+
+elif arg.save_name[:13] == 'ge_bond_l_gcn' :
+    model = TransformerGCNEmbedding_LearnableBond(d_model=arg.d_model,
+                    d_latent=arg.d_latent,
+                    d_ff=arg.d_ff,
+                    e_heads=arg.e_heads,
+                    d_heads=arg.d_heads,
+                    num_layer=arg.n_layers,
+                    dropout=arg.dropout,
+                    vocab=vocab,
+                    gvocab=gvocab).to(device)
+    print('Model: TransformerGCNEmbedding_LearnableBond')
+
 else : 
     print('Name not match')
     exit()
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
 
 optim = torch.optim.Adam(model.parameters(),
                          lr=arg.lr,
                          weight_decay=arg.wd)
 
 
-if arg.kl_type == 'monotonic' : 
+if arg.kl == 'M' : 
     annealer = monotonic_annealer(n_epoch=arg.n_epochs,
                                   kl_start=0,
                                   kl_w_start=arg.kl_w_start,
                                   kl_w_end=arg.kl_w_end)
-elif arg.kl_type == 'cyclic' :
+elif arg.kl == 'C' :
     annealer = cyclic_annealer(start=arg.kl_w_start,
                                stop=arg.kl_w_end,
                                n_epoch=arg.n_epochs,
@@ -199,7 +261,7 @@ for epoch in range(1, arg.n_epochs + 1) :
     print(f'Finished Training Epoch {epoch}...')
 
 
-    if (epoch < 50) or (epoch >= 50 and epoch % 5 == 0) :
+    if (epoch < 50 and epoch >= 10) or (epoch >= 50 and epoch % 5 == 0) :
         snapshot = {
             "MODEL_STATE": model.state_dict(),
             "OPTIMIZER_STATE": optim.state_dict(),

@@ -1,9 +1,11 @@
 import os 
 import torch 
 import argparse 
-from model.base import Transformer as TransformerBase
+from model.base_o import Transformer as TransformerBase
 from model.base_complete import Transformer as TransformerBaseComplete
 from model.bond import Transformer as TransformerBond
+from model.simple_bond import Transformer as TransformerSimpleBond
+from model.graph_embedding import Transformer as TransformerGraphEmbedding
 import multiprocessing 
 from tqdm import tqdm
 import datetime 
@@ -60,6 +62,10 @@ def parallel_f(f, input_list) :
 config = torch.load(f'checkpoint/{arg.save_name}/config.pt') 
 inv_vocab = {v: k for k, v in config['vocab'].items()}
 
+
+
+
+
 if arg.save_name[0] == 'b' : 
     model = TransformerBond(
         d_model=config['d_model'],
@@ -74,6 +80,31 @@ if arg.save_name[0] == 'b' :
     ).to(device)
 elif arg.save_name[0] == 'c' : 
     model = TransformerBaseComplete(
+        d_model=config['d_model'],
+        d_latent=config['d_latent'],
+        d_ff=config['d_ff'],
+        e_heads=config['e_heads'],
+        d_heads=config['d_heads'],
+        num_layer=config['n_layers'],
+        dropout=config['dropout'],
+        vocab=config['vocab'],
+        gvocab=config['gvocab']
+    ).to(device)
+
+elif arg.save_name[0] == 's' :
+    model = TransformerSimpleBond(
+        d_model=config['d_model'],
+        d_latent=config['d_latent'],
+        d_ff=config['d_ff'],
+        e_heads=config['e_heads'],
+        d_heads=config['d_heads'],
+        num_layer=config['n_layers'],
+        dropout=config['dropout'],
+        vocab=config['vocab'],
+        gvocab=config['gvocab']
+    ).to(device)
+elif arg.save_name[0] == 'g' :
+    model = TransformerGraphEmbedding(
         d_model=config['d_model'],
         d_latent=config['d_latent'],
         d_ff=config['d_ff'],

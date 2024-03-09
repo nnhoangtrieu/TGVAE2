@@ -1,7 +1,7 @@
 import os 
 import torch 
 import argparse
-from model.base import Transformer as TransformerBase
+from model.base_o import Transformer as TransformerBase
 from model.base_complete import Transformer as TransformerBaseComplete
 from model.bond import Transformer as TransformerBond
 from torch.utils.tensorboard import SummaryWriter
