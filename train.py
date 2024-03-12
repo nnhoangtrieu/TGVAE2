@@ -8,12 +8,15 @@ from torch.nn.utils import clip_grad_norm_
 from torch_geometric.loader import DataLoader as gDataLoader
 from model.base_o import Transformer as TransformerBaseOld
 from model.base_c import Transformer as TransformerBaseComplete
+from model.base_fgcn import Transformer as TransformerBaseFullGCN
 from model.bond_s import Transformer as TransformerSimpleBond
 from model.bond_l import Transformer as TransformerLearnableBond
 from model.ge_gat import Transformer as TransformerGATEmbedding
 from model.ge_gcn import Transformer as TransformerGCNEmbedding
 from model.ge_bond_l_gat import Transformer as TransformerGATEmbedding_LearnableBond
 from model.ge_bond_l_gcn import Transformer as TransformerGCNEmbedding_LearnableBond
+from model.pharmacophore_ge_gcn import Transformer as TransformerGCNEmbedding_Pharmacophore
+from model.coor import Transformer as TransformerCoordinate
 from data import ProcessData
 from utils import monotonic_annealer, get_mask, seed_torch, cyclic_annealer
 
@@ -43,6 +46,8 @@ parser.add_argument('--kl_w_start', type=float, default=0.00005)
 parser.add_argument('--kl_w_end', type=float, default=0.0001)
 parser.add_argument('--kl_cycle', type=int, default=4)
 parser.add_argument('--kl_ratio', type=float, default=1.0)
+parser.add_argument('--pharmacophore', type=bool, default=False)
+parser.add_argument('--coor', type=bool, default=False)
 parser.add_argument('--save_name', type=str, default='savename')
 arg = parser.parse_args()
 
@@ -54,7 +59,9 @@ if not os.path.exists(f'checkpoint/{arg.save_name}') :
     os.makedirs(f'checkpoint/{arg.save_name}')
 if not os.path.exists(f'genmol/{arg.save_name}') :
     os.makedirs(f'genmol/{arg.save_name}')
-Data = ProcessData('data/train.txt', arg.max_len)
+
+
+Data = ProcessData('data/train.txt', arg.max_len,pharmacophore=arg.pharmacophore, coor=arg.coor)
 data_list, smi_list, vocab, inv_vocab, gvocab, max_len = (Data.process(),
                                                          Data.smi_list,
                                                          Data.vocab,
@@ -98,6 +105,17 @@ elif arg.save_name[:6] == 'base_c':
                                     gvocab=gvocab).to(device)
     print('Model: TransformerBaseComplete')
 
+elif arg.save_name[:9] == 'base_fgcn' :
+    model = TransformerBaseFullGCN(d_model=arg.d_model,
+                    d_latent=arg.d_latent,
+                    d_ff=arg.d_ff,
+                    e_heads=arg.e_heads,
+                    d_heads=arg.d_heads,
+                    num_layer=arg.n_layers,
+                    dropout=arg.dropout,
+                    vocab=vocab,
+                    gvocab=gvocab).to(device)
+    print('Model: TransformerBaseFullGCN')
 elif arg.save_name[:6] == 'bond_s' :
     model = TransformerSimpleBond(d_model=arg.d_model,
                     d_latent=arg.d_latent,
@@ -169,6 +187,32 @@ elif arg.save_name[:13] == 'ge_bond_l_gcn' :
                     vocab=vocab,
                     gvocab=gvocab).to(device)
     print('Model: TransformerGCNEmbedding_LearnableBond')
+
+
+elif arg.save_name[:20] == 'pharmacophore_ge_gcn' : 
+    model = TransformerGCNEmbedding_Pharmacophore(d_model=arg.d_model,
+                    d_latent=arg.d_latent,
+                    d_ff=arg.d_ff,
+                    e_heads=arg.e_heads,
+                    d_heads=arg.d_heads,
+                    num_layer=arg.n_layers,
+                    dropout=arg.dropout,
+                    vocab=vocab,
+                    gvocab=gvocab).to(device)
+    print('Model: TransformerGCNEmbedding_Pharmacophore')
+
+
+elif arg.save_name[:4] == 'coor' : 
+    model = TransformerCoordinate(d_model=arg.d_model,
+                    d_latent=arg.d_latent,
+                    d_ff=arg.d_ff,
+                    e_heads=arg.e_heads,
+                    d_heads=arg.d_heads,
+                    num_layer=arg.n_layers,
+                    dropout=arg.dropout,
+                    vocab=vocab,
+                    gvocab=gvocab).to(device)
+    print('Model: TransformerCoordinate')
 
 else : 
     print('Name not match')

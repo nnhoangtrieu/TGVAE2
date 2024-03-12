@@ -1,18 +1,19 @@
 import re
 
 scripts = [
-'train.py --n_layers 6',
-'train.py --n_layers 8',
+'train.py --n_layers 6 --coor True',
+'train.py --n_layers 8 --coor True',
 
-'train.py --n_layers 6 --kl "C" --kl_cycle 2',
-'train.py --n_layers 8 --kl "C" --kl_cycle 2',
-'train.py --n_layers 6 --kl "C" --kl_cycle 4',
-'train.py --n_layers 8 --kl "C" --kl_cycle 4'
+# 'train.py --n_layers 6 --kl "C" --kl_cycle 2',
+# 'train.py --n_layers 8 --kl "C" --kl_cycle 2',
+# 'train.py --n_layers 6 --kl "C" --kl_cycle 4',
+# 'train.py --n_layers 8 --kl "C" --kl_cycle 4'
 
 ]
 
 
-model = ['base_o', 'base_c', 'bond_s', 'bond_l', 'ge_bond_l_gat', 'ge_bond_l_gcn', 'ge_gat', 'ge_gcn']
+# model = ['base_o', 'base_c', 'bond_s', 'bond_l', 'ge_bond_l_gat', 'ge_bond_l_gcn', 'ge_gat', 'ge_gcn']
+model = ['coor']
 
 check = []
 
@@ -59,7 +60,7 @@ python {script} --save_name "{m}|||{save_name}"
 # #SBATCH --output=moses%j.out
 
 # ml Python 
-# python get-metrics.py --save_name "{save_name}"
+# python all-metric.py --save_name "{save_name}"
 #  ''')
 
 

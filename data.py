@@ -20,12 +20,14 @@ class MyData(Data) :
 
 
 class ProcessData() : 
-    def __init__(self, path, max_len, node_feature_list = None, edge_index_list = None, token_list = None)  :
+    def __init__(self, path, max_len, node_feature_list = None, edge_index_list = None, token_list = None, pharmacophore=False, coor=False)  :
         self.path = path 
         self.max_len = max_len 
         self.node_feature_list = node_feature_list 
         self.edge_index_list = edge_index_list 
         self.token_list = token_list
+        self.pharmacophore = pharmacophore
+        self.coor = coor
     def extract(self) : 
         if self.path.lower().endswith('.txt') : 
             with open(self.path, 'r') as f : 
@@ -83,6 +85,40 @@ class ProcessData() :
         mol = rdkit.Chem.MolFromSmiles(smi) 
         return torch.tensor([dic[str(bond.GetBondType())] for bond in mol.GetBonds()] * 2)
     
+    def get_pnf(self, smi) : 
+        feature_factory = AllChem.BuildFeatureFactory(str(Path(RDConfig.RDDataDir) / "BaseFeatures.fdef"))
+        feature_opt = list(feature_factory.GetFeatureDefs().keys())
+        feature_opt = [f.split('.')[1] for f in feature_opt]
+        feature_dic = {f:i for i, f in enumerate(feature_opt)}
+        node_f = [0] * len(list(feature_factory.GetFeatureDefs().keys()))
+        mol = rdkit.Chem.MolFromSmiles(smi) 
+        rdkit.Chem.SanitizeMol(mol)
+        mol_h = rdkit.Chem.AddHs(mol)
+        AllChem.EmbedMolecule(mol_h) 
+
+        factory = feature_factory.GetFeaturesForMol(mol_h, confId=-1)
+
+
+        feat = [[f.GetAtomIds(), f.GetType()] for f in factory]
+        token = [node_f] * mol.GetNumAtoms()
+
+        for idx, f in feat : 
+            for i in idx : 
+                token[i][feature_dic[f]] = 1.0
+        return torch.tensor(token)
+
+    def get_coor(self, smi) : 
+        mol = rdkit.Chem.AddHs(rdkit.Chem.MolFromSmiles(smi))
+        AllChem.EmbedMolecule(mol) 
+        AllChem.UFFOptimizeMolecule(mol) 
+        coor = []
+        for i, atom in enumerate(mol.GetAtoms()) : 
+            if atom.GetSymbol() != 'H' :
+                pos = mol.GetConformer().GetAtomPosition(i) 
+                coor.append([round(pos.x, 4), round(pos.y, 4), round(pos.z, 4)])
+        return torch.tensor(coor)
+
+
     def get_ei(self, smi) : 
         mol = rdkit.Chem.MolFromSmiles(smi) 
         ei = []
@@ -112,8 +148,33 @@ class ProcessData() :
         self.max_len = len(max(token_list, key=len))
         token_list = [self.pad(t) for t in token_list]
         node_feature_list = [self.get_nf(smi) for smi in self.smi_list]
+        node_pharmacophore_list = [self.get_pnf(smi) for smi in self.smi_list]
         edge_index_list = [self.get_ei(smi) for smi in self.smi_list]
         edge_weight_list = [self.get_ew(smi) for smi in self.smi_list]
-        data_list = [MyData(x=node_feature_list[i], edge_index=edge_index_list[i], edge_attr=edge_weight_list[i], smi=token_list[i]) for i in range(len(self.smi_list))]
+
+        coor_list = [self.get_coor(smi) for smi in self.smi_list]
+
+        if self.pharmacophore : 
+            data_list = [MyData(x=torch.cat((node_feature_list[i].unsqueeze(-1), node_pharmacophore_list[i]), dim=-1),
+                                edge_index=edge_index_list[i],
+                                edge_attr=edge_weight_list[i],
+                                smi=token_list[i]) for i in range(len(self.smi_list)) if node_feature_list[i].size(0) == node_pharmacophore_list[i].size(0)]
+            
+        elif self.coor : 
+            data_list = [MyData(x=node_feature_list[i],
+                                edge_index=edge_index_list[i],
+                                edge_attr=edge_weight_list[i],
+                                coor=coor_list[i],
+                                smi=token_list[i]) for i in range(len(self.smi_list))]
+        else :
+            data_list = [MyData(x=node_feature_list[i],
+                                edge_index=edge_index_list[i],
+                                edge_attr=edge_weight_list[i],
+                                smi=token_list[i]) for i in range(len(self.smi_list))]
+
+
+        
+
+
 
         return data_list
