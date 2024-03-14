@@ -1,19 +1,21 @@
 import re
 
 scripts = [
-'train.py --n_layers 6 --coor True',
-'train.py --n_layers 8 --coor True',
+'train.py --n_layers 9',
+'train.py --n_layers 8 --kl "M" --kl_w_start 0.00005 --kl_w_end 0.000075',
+'train.py --n_layers 8 --kl "M" --kl_w_start 0.000075 --kl_w_end 0.000125',
+'train.py --n_layers 8 --kl "M" --kl_w_start 0.0001 --kl_w_end 0.00015',
+'train.py --n_layers 8 --kl "M" --kl_w_start 0.0001 --kl_w_end 0.0003',
 
-# 'train.py --n_layers 6 --kl "C" --kl_cycle 2',
-# 'train.py --n_layers 8 --kl "C" --kl_cycle 2',
-# 'train.py --n_layers 6 --kl "C" --kl_cycle 4',
-# 'train.py --n_layers 8 --kl "C" --kl_cycle 4'
+'train.py --n_layers 8 --kl "C" --kl_cycle 4 --kl_w_start 0.00005 --kl_w_end 0.000075',
+'train.py --n_layers 8 --kl "C" --kl_cycle 6',
+'train.py --n_layers 8 --kl "C" --kl_cycle 8'
 
 ]
 
 
 # model = ['base_o', 'base_c', 'bond_s', 'bond_l', 'ge_bond_l_gat', 'ge_bond_l_gcn', 'ge_gat', 'ge_gcn']
-model = ['coor']
+model = ['ge_bond_l_gat']
 
 check = []
 

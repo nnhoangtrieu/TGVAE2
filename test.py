@@ -6,11 +6,15 @@ from pathlib import Path
 import re 
 import torch
 from rdkit.Chem import rdDistGeom
+import multiprocessing
+from tqdm import tqdm
 
 
 test_smi = 'CCCC'
 
-
+def parallel_f(f, input_list) :
+    pool = multiprocessing.Pool()
+    return pool.map(f, input_list)
 
 def get_ei(smi) : 
     mol = rdkit.Chem.MolFromSmiles(smi) 
@@ -143,25 +147,15 @@ def get_pnf(smi) :
     for idx, f in feat : 
         for i in idx : 
             token[i][feature_dic[f]] = 1.0
+    print(smi)
     return torch.tensor(token)
         
 
 
-# pnf = get_pnf('CCCS(=O)c1ccc2[nH]c(=NC(=O)OC)[nH]c2c1')
-
-
-# print(pnf, pnf.shape)
 
 
 
-
-# mol = rdkit.Chem.MolFromSmiles('CCCS(=O)c1ccc2[nH]c(=NC(=O)OC)[nH]c2c1')
-
-# for atom in mol.GetAtoms() : 
-#     print(atom.GetSymbol())
-
-
-
+import pickle
 
 
 def get_coor(smi) : 
@@ -173,25 +167,27 @@ def get_coor(smi) :
         if atom.GetSymbol() != 'H' :
             pos = mol.GetConformer().GetAtomPosition(i) 
             coor.append([round(pos.x, 4), round(pos.y, 4), round(pos.z, 4)])
+    
     return torch.tensor(coor)
 
 
 
+# with open('data/train.txt', 'r') as f :
+#     smi_list = [s.strip() for s in f.readlines()]
 
 
-mol = rdkit.Chem.MolFromSmiles('CCCS(=O)c1ccc2[nH]c(=NC(=O)OC)[nH]c2c1')
 
-for atom in mol.GetAtoms() : 
-    print(atom.GetFormalCharge())
+# coor_list = []
+
+# for i in tqdm(range(0, 1000)) : 
+#     coor = get_coor(smi_list[i])
+#     coor_list.append(coor)
+
+# with open('data/coor/data0_1k.pkl', 'wb') as f : 
+#     pickle.dump(coor_list, f)
 
 
-# from data import ProcessData
-# from torch_geometric.loader import DataLoader as gDataLoader
+with open('data/coor/data0_1k.pkl', 'rb') as f :
+    coor_list = pickle.load(f)
 
-# Data = ProcessData('data/train.txt', 22,coor=True)
-
-# data_list = Data.process()
-
-# train_loader = gDataLoader(data_list, batch_size=16, shuffle=True)
-# for i in train_loader : 
-#     print(i)
+    print(coor_list)

@@ -1,5 +1,8 @@
 checkpoint/
 
+data/
+
+
 *.out
 
 *.sub
