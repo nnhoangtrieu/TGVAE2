@@ -1,15 +1,14 @@
 import os 
 import torch 
 import argparse
-from model.base_o import Transformer as TransformerBaseOld
-from model.base_c import Transformer as TransformerBaseComplete
-from model.base_fgcn import Transformer as TransformerBaseFullGCN
+from model.base import Transformer as TransformerBaseComplete
 from model.bond_s import Transformer as TransformerSimpleBond
 from model.bond_l import Transformer as TransformerLearnableBond
-from model.ge_gat import Transformer as TransformerGATEmbedding
-from model.ge_gcn import Transformer as TransformerGCNEmbedding
-from model.ge_bond_l_gat import Transformer as TransformerGATEmbedding_LearnableBond
-from model.ge_bond_l_gcn import Transformer as TransformerGCNEmbedding_LearnableBond
+from model.GAT import Transformer as TransformerGATEmbedding
+from model.GCN import Transformer as TransformerGCNEmbedding
+from model.GATb import Transformer as TransformerGATEmbedding_LearnableBond
+from model.GCNb import Transformer as TransformerGCNEmbedding_LearnableBond
+from model.test import Transformer as TransformerTest
 from torch.utils.tensorboard import SummaryWriter
 import multiprocessing
 from metric.metrics import get_all_metrics
@@ -53,35 +52,11 @@ if not os.path.exists(f'genmol/{arg.save_name}') :
 config = torch.load(f'checkpoint/{arg.save_name}/config.pt') if arg.save_name != 'None' else torch.load(f'{arg.save_path}/config.pt')
 inv_vocab = {v: k for k, v in config['vocab'].items()}
 
-if arg.save_name[:6] == 'base_o' :
-    model = TransformerBaseOld(
-        d_model=config['d_model'],
-        d_latent=config['d_latent'],
-        d_ff=config['d_ff'],
-        e_heads=config['e_heads'],
-        d_heads=config['d_heads'],
-        num_layer=config['n_layers'],
-        dropout=config['dropout'],
-        vocab=config['vocab'],
-        gvocab=config['gvocab']
-    ).to(device)
-    print('Model: TransformerBaseOld')
 
-elif arg.save_name[:9] == 'base_fgcn' :
-    model = TransformerBaseFullGCN(
-        d_model=config['d_model'],
-        d_latent=config['d_latent'],
-        d_ff=config['d_ff'],
-        e_heads=config['e_heads'],
-        d_heads=config['d_heads'],
-        num_layer=config['n_layers'],
-        dropout=config['dropout'],
-        vocab=config['vocab'],
-        gvocab=config['gvocab']
-    ).to(device)
-    print('Model: TransformerBaseFullGCN')
 
-elif arg.save_name[:6] == 'base_c': 
+
+
+if arg.save_name[:6] == 'base_c': 
     model = TransformerBaseComplete(
         d_model=config['d_model'],
         d_latent=config['d_latent'],
@@ -151,7 +126,7 @@ elif arg.save_name[:6] == 'ge_gcn' :
     ).to(device)
     print('Model: TransformerGCNEmbedding')
 
-elif arg.save_name[:13] == 'ge_bond_l_gat' :
+elif arg.save_name[:4] == 'GATb' or arg.save_name[:4] == 'BASE' :
     model = TransformerGATEmbedding_LearnableBond(
         d_model=config['d_model'],
         d_latent=config['d_latent'],
@@ -211,7 +186,7 @@ for epoch in range(arg.start, config['n_epochs'] + 1) :
         gen_mol = gen_mol.tolist() 
 
         gen_mol = parallel_f(read_gen_smi, gen_mol)
-        result = get_all_metrics(gen_mol, k=(10000, 20000, 25000, 30000), pool=4)
+        result = get_all_metrics(gen_mol, pool=4)
         table.add_row([epoch,
                        round(result['valid'],4),
                        round(result['unique@10000'],4),

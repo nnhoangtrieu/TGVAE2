@@ -3,10 +3,14 @@ import rdkit.Chem
 import torch 
 import re 
 from torch_geometric.data import Data
+from torch_geometric.loader import DataLoader as gDataLoader
+from data import ProcessData
+
+
 
 class MyData(Data) : 
     def __cat_dim__(self, key, value, *args, **kwargs) : 
-        if key == 'token' :
+        if key == 'token' or key == 'smi':
             return None 
         return super().__cat_dim__(key, value, *args, **kwargs) 
 
@@ -45,7 +49,7 @@ def get_graph_data(smi, gvocab, vocab, max_len) :
 
 
     return MyData(x=torch.tensor(node_feat),
-                  edge_index=torch.tensor(edge_idx),
+                  edge_index=torch.tensor(edge_idx).T,
                   edge_attr=torch.tensor(edge_feat),
                   token=torch.tensor(token, dtype=torch.long),
                   smi=smi)
@@ -57,9 +61,20 @@ gvocab = torch.load('data/moses_gvocab.pt')
 vocab = torch.load('data/moses_vocab.pt')
 maxlen = torch.load('data/moses_maxlen.pt')
 
+print(gvocab)
 
-with open('data/train.txt', 'r') as f : 
-    smi_list = [s.strip() for s in ]
+
+# with open('data/train.txt', 'r') as f : 
+#     smi_list = [s.strip() for s in f.readlines()][1500000:]
+
+#     data = []
+
+#     for s in smi_list : 
+#         print(s)
+#         data.append(get_graph_data(s, gvocab, vocab, maxlen))
+
+#     torch.save(data, 'data/moses/data1500k_1600k.pt')
+
 
 
 

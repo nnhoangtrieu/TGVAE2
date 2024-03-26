@@ -6,17 +6,14 @@ import torch_geometric
 import torch.nn.functional as F
 from torch.nn.utils import clip_grad_norm_
 from torch_geometric.loader import DataLoader as gDataLoader
-from model.base_o import Transformer as TransformerBaseOld
-from model.base_c import Transformer as TransformerBaseComplete
-from model.base_fgcn import Transformer as TransformerBaseFullGCN
+from model.base import Transformer as TransformerBaseComplete
 from model.bond_s import Transformer as TransformerSimpleBond
 from model.bond_l import Transformer as TransformerLearnableBond
-from model.ge_gat import Transformer as TransformerGATEmbedding
-from model.ge_gcn import Transformer as TransformerGCNEmbedding
-from model.ge_bond_l_gat import Transformer as TransformerGATEmbedding_LearnableBond
-from model.ge_bond_l_gcn import Transformer as TransformerGCNEmbedding_LearnableBond
-from model.pharmacophore_ge_gcn import Transformer as TransformerGCNEmbedding_Pharmacophore
-from model.coor import Transformer as TransformerCoordinate
+from model.GAT import Transformer as TransformerGATEmbedding
+from model.GCN import Transformer as TransformerGCNEmbedding
+from model.GATb import Transformer as TransformerGATb
+from model.GCNb import Transformer as TransformerGCNEmbedding_LearnableBond
+from model.test import Transformer as TransformerTest
 from data import ProcessData
 from utils import monotonic_annealer, get_mask, seed_torch, cyclic_annealer
 
@@ -55,10 +52,9 @@ print('\nArguments:')
 print(vars(arg))
 
 
-if not os.path.exists(f'checkpoint/{arg.save_name}') : 
-    os.makedirs(f'checkpoint/{arg.save_name}')
-if not os.path.exists(f'genmol/{arg.save_name}') :
-    os.makedirs(f'genmol/{arg.save_name}')
+if not os.path.exists(f'/share/lab_karolak/Team/Trieu/checkpoint/{arg.save_name}') : 
+    os.makedirs(f'/share/lab_karolak/Team/Trieu/checkpoint/{arg.save_name}')
+
 
 
 Data = ProcessData('data/train.txt', arg.max_len,pharmacophore=arg.pharmacophore, coor=arg.coor)
@@ -72,7 +68,7 @@ config = vars(arg)
 config['vocab'] = vocab 
 config['gvocab'] = gvocab
 config['max_token_len'] = max_len 
-torch.save(vars(arg), f'checkpoint/{arg.save_name}/config.pt')
+torch.save(vars(arg), f'/share/lab_karolak/Team/Trieu/checkpoint/{arg.save_name}/config.pt')
 
 print(f'\nNumber of data: {len(data_list)}')
 train_loader = gDataLoader(data_list, batch_size=arg.batch, shuffle=True)  
@@ -81,19 +77,9 @@ train_loader = gDataLoader(data_list, batch_size=arg.batch, shuffle=True)
 
 
 
-if arg.save_name[:6] == 'base_o' :
-    model = TransformerBaseOld(d_model=arg.d_model,
-                            d_latent=arg.d_latent,
-                            d_ff=arg.d_ff,
-                            e_heads=arg.e_heads,
-                            d_heads=arg.d_heads,
-                            num_layer=arg.n_layers,
-                            dropout=arg.dropout,
-                            vocab=vocab,
-                            gvocab=gvocab).to(device)
-    print('Model: TransformerBaseOld')
 
-elif arg.save_name[:6] == 'base_c': 
+
+if arg.save_name[:4] == 'base': 
     model = TransformerBaseComplete(d_model=arg.d_model,
                                     d_latent=arg.d_latent,
                                     d_ff=arg.d_ff,
@@ -105,17 +91,7 @@ elif arg.save_name[:6] == 'base_c':
                                     gvocab=gvocab).to(device)
     print('Model: TransformerBaseComplete')
 
-elif arg.save_name[:9] == 'base_fgcn' :
-    model = TransformerBaseFullGCN(d_model=arg.d_model,
-                    d_latent=arg.d_latent,
-                    d_ff=arg.d_ff,
-                    e_heads=arg.e_heads,
-                    d_heads=arg.d_heads,
-                    num_layer=arg.n_layers,
-                    dropout=arg.dropout,
-                    vocab=vocab,
-                    gvocab=gvocab).to(device)
-    print('Model: TransformerBaseFullGCN')
+
 elif arg.save_name[:6] == 'bond_s' :
     model = TransformerSimpleBond(d_model=arg.d_model,
                     d_latent=arg.d_latent,
@@ -164,8 +140,8 @@ elif arg.save_name[:6] == 'ge_gcn' :
                     gvocab=gvocab).to(device)
     print('Model: TransformerGCNEmbedding')
 
-elif arg.save_name[:13] == 'ge_bond_l_gat' :
-    model = TransformerGATEmbedding_LearnableBond(d_model=arg.d_model,
+elif arg.save_name[:4] == 'GATb' :
+    model = TransformerGATb(d_model=arg.d_model,
                     d_latent=arg.d_latent,
                     d_ff=arg.d_ff,
                     e_heads=arg.e_heads,
@@ -174,7 +150,7 @@ elif arg.save_name[:13] == 'ge_bond_l_gat' :
                     dropout=arg.dropout,
                     vocab=vocab,
                     gvocab=gvocab).to(device)
-    print('Model: TransformerGATEmbedding_LearnableBond')
+    print('Model: TransformerGATb')
 
 elif arg.save_name[:13] == 'ge_bond_l_gcn' :
     model = TransformerGCNEmbedding_LearnableBond(d_model=arg.d_model,
@@ -188,31 +164,6 @@ elif arg.save_name[:13] == 'ge_bond_l_gcn' :
                     gvocab=gvocab).to(device)
     print('Model: TransformerGCNEmbedding_LearnableBond')
 
-
-elif arg.save_name[:20] == 'pharmacophore_ge_gcn' : 
-    model = TransformerGCNEmbedding_Pharmacophore(d_model=arg.d_model,
-                    d_latent=arg.d_latent,
-                    d_ff=arg.d_ff,
-                    e_heads=arg.e_heads,
-                    d_heads=arg.d_heads,
-                    num_layer=arg.n_layers,
-                    dropout=arg.dropout,
-                    vocab=vocab,
-                    gvocab=gvocab).to(device)
-    print('Model: TransformerGCNEmbedding_Pharmacophore')
-
-
-elif arg.save_name[:4] == 'coor' : 
-    model = TransformerCoordinate(d_model=arg.d_model,
-                    d_latent=arg.d_latent,
-                    d_ff=arg.d_ff,
-                    e_heads=arg.e_heads,
-                    d_heads=arg.d_heads,
-                    num_layer=arg.n_layers,
-                    dropout=arg.dropout,
-                    vocab=vocab,
-                    gvocab=gvocab).to(device)
-    print('Model: TransformerCoordinate')
 
 else : 
     print('Name not match')
@@ -304,14 +255,14 @@ for epoch in range(1, arg.n_epochs + 1) :
         loss.backward(), optim.step(), optim.zero_grad(), clip_grad_norm_(model.parameters(), 5)
     print(f'Finished Training Epoch {epoch}...')
 
-
-    if (epoch < 50 and epoch >= 10) or (epoch >= 50 and epoch % 5 == 0) :
+    if epoch >= 20 :
+    # if (epoch < 60 and epoch >= 20) or (epoch >= 60 and epoch % 5 == 0) :
         snapshot = {
             "MODEL_STATE": model.state_dict(),
             "OPTIMIZER_STATE": optim.state_dict(),
             "EPOCHS_RUN": epoch,
         }
-        torch.save(snapshot, f'checkpoint/{arg.save_name}/snapshot_{epoch}.pt')
+        torch.save(snapshot, f'/share/lab_karolak/Team/Trieu/checkpoint/{arg.save_name}/snapshot_{epoch}.pt')
         print(f"Training snapshot saved at checkpoint/{arg.save_name}/snapshot_{epoch}.pt")
     
     else : 

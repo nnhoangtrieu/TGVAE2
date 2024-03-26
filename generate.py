@@ -1,21 +1,21 @@
 import os 
 import torch 
 import argparse 
-from model.base_o import Transformer as TransformerBaseOld
-from model.base_c import Transformer as TransformerBaseComplete
-from model.base_fgcn import Transformer as TransformerBaseFullGCN
+
+from model.base import Transformer as TransformerBaseComplete
 from model.bond_s import Transformer as TransformerSimpleBond
 from model.bond_l import Transformer as TransformerLearnableBond
-from model.ge_gat import Transformer as TransformerGATEmbedding
-from model.ge_gcn import Transformer as TransformerGCNEmbedding
-from model.ge_bond_l_gat import Transformer as TransformerGATEmbedding_LearnableBond
-from model.ge_bond_l_gcn import Transformer as TransformerGCNEmbedding_LearnableBond
+from model.GAT import Transformer as TransformerGATEmbedding
+from model.GCN import Transformer as TransformerGCNEmbedding
+from model.GATb import Transformer as TransformerGATEmbedding_LearnableBond
+from model.GCNb import Transformer as TransformerGCNEmbedding_LearnableBond
+
 import multiprocessing 
 from tqdm import tqdm
 import datetime 
 import warnings
 import rdkit
-from metric.metrics import get_all_metrics
+from metric.metrics import get_all_metrics, remove_invalid
 from metric.plot import get_plot
 from helper.table import table1, table2, table3, table4
 warnings.filterwarnings("ignore")
@@ -67,37 +67,17 @@ config = torch.load(f'checkpoint/{arg.save_name}/config.pt')
 inv_vocab = {v: k for k, v in config['vocab'].items()}
 
 
+# with open('data/adagrasib6k_train.txt','r') as f :
+#     train_set = [s.strip() for s in f.readlines()]  
+
+# with open('data/adagrasib6k_test.txt','r') as f :
+#     test_set = [s.strip() for s in f.readlines()]
 
 
 
 
-if arg.save_name[:6] == 'base_o' :
-    model = TransformerBaseOld(
-        d_model=config['d_model'],
-        d_latent=config['d_latent'],
-        d_ff=config['d_ff'],
-        e_heads=config['e_heads'],
-        d_heads=config['d_heads'],
-        num_layer=config['n_layers'],
-        dropout=config['dropout'],
-        vocab=config['vocab'],
-        gvocab=config['gvocab']
-    ).to(device)
-    print('Model: TransformerBaseOld')
 
-elif arg.save_name[:9] == 'base_fgcn' :
-    model = TransformerBaseFullGCN(d_model=arg.d_model,
-                    d_latent=arg.d_latent,
-                    d_ff=arg.d_ff,
-                    e_heads=arg.e_heads,
-                    d_heads=arg.d_heads,
-                    num_layer=arg.n_layers,
-                    dropout=arg.dropout,
-                    vocab=vocab,
-                    gvocab=gvocab).to(device)
-    print('Model: TransformerBaseFullGCN')
-
-elif arg.save_name[:6] == 'base_c': 
+if arg.save_name[:6] == 'base': 
     model = TransformerBaseComplete(
         d_model=config['d_model'],
         d_latent=config['d_latent'],
@@ -167,7 +147,7 @@ elif arg.save_name[:6] == 'ge_gcn' :
     ).to(device)
     print('Model: TransformerGCNEmbedding')
 
-elif arg.save_name[:13] == 'ge_bond_l_gat' :
+elif arg.save_name[:4] == 'GATb' or arg.save_name[:4] == 'BASE':
     model = TransformerGATEmbedding_LearnableBond(
         d_model=config['d_model'],
         d_latent=config['d_latent'],
@@ -181,6 +161,19 @@ elif arg.save_name[:13] == 'ge_bond_l_gat' :
     ).to(device)
     print('Model: TransformerGATEmbedding_LearnableBond')
 
+elif arg.save_name[:8] == 'pretrain':
+    model = TransformerGATEmbedding_LearnableBond(
+        d_model=config['dM'],
+        d_latent=config['dL'],
+        d_ff=config['dFF'],
+        e_heads=config['e_heads'],
+        d_heads=config['d_heads'],
+        num_layer=config['layers'],
+        dropout=config['dropout'],
+        vocab=config['vocab'],
+        gvocab=config['gvocab']
+    ).to(device)
+    print('Model: TransformerGATEmbedding_LearnableBond')
 elif arg.save_name[:13] == 'ge_bond_l_gcn' :
     model = TransformerGCNEmbedding_LearnableBond(
         d_model=config['d_model'],
@@ -229,9 +222,18 @@ with torch.no_grad() :
     gen_mol = gen_mol.tolist() 
     gen_mol = parallel_f(read_gen_smi, gen_mol)
 
-    # print('Generated Molecules: ')
-    # for i, mol in enumerate(gen_mol) : 
-    #     print(f'{i+1}. {mol}')
+    # gen_mol = remove_invalid(gen_mol)
+    # if len(gen_mol) < 30000 :
+    #     print('< 30000')
+    #     exit()
+    # else : 
+    #     gen_mol = gen_mol[:30000]
+    #     print(len(gen_mol))
+    
+
+    print('Generated Molecules: ')
+    for i, mol in enumerate(gen_mol[:100]) : 
+        print(f'{i+1}. {mol}')
 
     os.makedirs(f'output/{current}_{arg.save_name}', exist_ok=True)
 
@@ -240,9 +242,15 @@ with torch.no_grad() :
         for i, mol in enumerate(gen_mol) : 
             f.write(f'{mol}\n')
 
+
+
+
     if arg.get_metric == True :
         print('Calculating metrics...')
-        result = get_all_metrics(gen_mol, k=(10000, 20000, 25000, 30000), pool=arg.num_cpu)
+        if arg.save_name[:8] != 'finetune' :
+            result = get_all_metrics(gen_mol, k=(10000, 20000, 25000, 30000), pool=arg.num_cpu)
+        else : 
+            result = get_all_metrics(gen_mol, k=(10000, 20000, 25000, 30000), pool=arg.num_cpu)
         get_plot(gen_mol, f'output/{current}_{arg.save_name}')
     else :
         print('Skip calculating metrics...')
@@ -262,12 +270,8 @@ with torch.no_grad() :
         f.write(table2.get_string() + '\n\n')
         f.write(table3.get_string() + '\n\n')
         f.write(table4.get_string() + '\n\n')
-    # print(table1)
-    # print(table2)
-    # print(table3)
-    # print(table4)
+
 
         
 
 
-#srun -c 4 --mem 40g --gres=gpu:a30:1 --pty bash

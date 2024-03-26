@@ -351,45 +351,49 @@ def get_all_metrics(gen, k=None, n_jobs=1,
                     ptest=None, ptest_scaffolds=None,
                     train=None):
 
-    if test is None:
-        if ptest is not None:
-            raise ValueError(
-                "You cannot specify custom test "
-                "statistics for default test set")
-        # test = get_dataset('test')
+    if test is None : 
         with open(os.path.join(os.path.dirname(__file__), 'data', 'test.txt'),'r') as f :
-            test = f.readlines()
-            test = test[1:]
-            test = [c[:-6] for c in test]
-        # with open('data/test.txt','r') as f :
-        #     test = f.readlines()
-        #     test = test[1:]
-        #     test = [c[:-6] for c in test]
-        ptest = get_statistics('test')
+            test = [c.strip() for c in f.readlines()]
 
-    if test_scaffolds is None:
-        if ptest_scaffolds is not None:
-            raise ValueError(
-                "You cannot specify custom scaffold test "
-                "statistics for default scaffold test set")
-        # test_scaffolds = get_dataset('test_scaffolds')
-
+    if test_scaffolds is None : 
         with open(os.path.join(os.path.dirname(__file__), 'data', 'test_scaffolds.txt'),'r') as f :
-            test_scaffolds = f.readlines()
-            test_scaffolds = test_scaffolds[1:]
-            test_scaffolds = [c[:-6] for c in test_scaffolds]
-        # with open('data/test_scaffolds.txt','r') as f :
-        #     test_scaffolds = f.readlines()
-        #     test_scaffolds = test_scaffolds[1:]
-        #     test_scaffolds = [c[:-6] for c in test_scaffolds]
-        ptest_scaffolds = get_statistics('test_scaffolds')
+            test_scaffolds = [c.strip() for c in f.readlines()]
 
-    # train = train or get_dataset('train')
-    with open(os.path.join(os.path.dirname(__file__), 'data', 'train.txt'),'r') as f :
-        train = [c.strip() for c in f.readlines()]
-    # with open('data/train.txt','r') as f :
-    #     train = f.readlines()
-    #     train = [c.strip() for c in train]
+    if train is None :
+        with open(os.path.join(os.path.dirname(__file__), 'data', 'train.txt'),'r') as f :
+            train = [c.strip() for c in f.readlines()]
+    
+
+
+
+    # if test is None:
+    #     if ptest is not None:
+    #         raise ValueError(
+    #             "You cannot specify custom test "
+    #             "statistics for default test set")
+    #     with open(os.path.join(os.path.dirname(__file__), 'data', 'test.txt'),'r') as f :
+    #         test = f.readlines()
+    #         test = test[1:]
+    #         test = [c[:-6] for c in test]
+
+    #     ptest = get_statistics('test')
+
+    # if test_scaffolds is None:
+    #     if ptest_scaffolds is not None:
+    #         raise ValueError(
+    #             "You cannot specify custom scaffold test "
+    #             "statistics for default scaffold test set")
+
+    #     with open(os.path.join(os.path.dirname(__file__), 'data', 'test_scaffolds.txt'),'r') as f :
+    #         test_scaffolds = f.readlines()
+    #         test_scaffolds = test_scaffolds[1:]
+    #         test_scaffolds = [c[:-6] for c in test_scaffolds]
+
+    #     ptest_scaffolds = get_statistics('test_scaffolds')
+
+    # with open(os.path.join(os.path.dirname(__file__), 'data', 'train.txt'),'r') as f :
+    #     train = [c.strip() for c in f.readlines()]
+
     if k is None:
         k = [1000, 10000]
     disable_rdkit_log()

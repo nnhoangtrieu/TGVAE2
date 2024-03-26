@@ -7,10 +7,12 @@ import seaborn as sns
 from scipy.stats import wasserstein_distance
 import rdkit 
 from rdkit.Chem.QED import qed
-import sascorer 
 from rdkit import Chem
 from rdkit.Chem import Descriptors
 from multiprocessing import Pool
+import sys 
+sys.path.append(os.path.dirname(__file__))
+import sascorer 
 
 def get_mol(smiles_or_mol):
     '''
@@ -75,13 +77,12 @@ def mapper(n_jobs):
     return n_jobs.map
 
 
-def get_plot(gen_set, out_path, num_cpu=4) :
+def get_plot(gen_set, out_path, num_cpu=4, test=None) :
     rdkit.rdBase.DisableLog('rdApp.*')
 
-    with open('data/test.txt','r') as f :
-        test = f.readlines()
-        test = test[1:]
-        test = [c[:-6] for c in test]
+    if test is None:
+        with open(os.path.join(os.path.dirname(__file__), 'data', 'test.txt'),'r') as f :
+            test = [c.strip() for c in f.readlines()]
 
     generated = OrderedDict(
         {'MOSES': pd.DataFrame({'SMILES': test})})
